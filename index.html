@@ -382,36 +382,19 @@ td.purple { font-family: var(--mono); font-weight: 700; color: var(--purple); }
 .delta-warn { background: var(--yellow-dim); color: var(--yellow); }
 .delta-fail { background: var(--red-dim); color: var(--red); }
 
-/* ── SCRIBE CHIPS ── */
-.scribe-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
-  margin-bottom: 4px;
+/* ── OFFSET BADGE ── */
+.offset-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(88,166,255,.1);
+  color: var(--scribe);
+  border: 1px solid rgba(88,166,255,.25);
+  letter-spacing: .5px;
 }
-.scribe-chip {
-  background: rgba(88,166,255,.06);
-  border: 1px solid rgba(88,166,255,.2);
-  border-radius: var(--radius);
-  padding: 8px 12px;
-}
-.sc-label { font-family: var(--mono); font-size: 9px; font-weight: 700; color: var(--scribe); letter-spacing: 1px; text-transform: uppercase; }
-.sc-val { font-family: var(--mono); font-size: 11px; color: var(--text); margin-top: 3px; }
-
-/* ── VESSEL INFO STRIP ── */
-.vessel-strip {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 18px;
-  display: flex;
-  gap: 32px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
-.vs-item { display: flex; flex-direction: column; gap: 3px; }
-.vs-label { font-family: var(--mono); font-size: 9px; font-weight: 700; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
-.vs-val { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
 
 /* ── DEBUG ── */
 .debug-toggle {
@@ -456,6 +439,21 @@ td.purple { font-family: var(--mono); font-weight: 700; color: var(--purple); }
   display: none;
 }
 
+/* ── VESSEL STRIP ── */
+.vessel-strip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.vs-item { display: flex; flex-direction: column; gap: 3px; }
+.vs-label { font-family: var(--mono); font-size: 9px; font-weight: 700; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+.vs-val { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
+
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
@@ -468,7 +466,7 @@ td.purple { font-family: var(--mono); font-weight: 700; color: var(--purple); }
   <div class="logo-sep"></div>
   <div class="logo-full">Cut Accuracy Review &amp; Verification</div>
   <div class="hdr-right">
-    <span class="hdr-version">v3.2</span>
+    <span class="hdr-version">v3.3</span>
     <span class="hdr-pill">RVS CORP · ROTARY TUBE PRO</span>
   </div>
 </header>
@@ -515,13 +513,10 @@ td.purple { font-family: var(--mono); font-weight: 700; color: var(--purple); }
     <div class="status-banner" id="statusBanner">—</div>
     <div class="error-banner" id="errorBanner"></div>
 
-    <!-- Vessel info strip -->
     <div class="vessel-strip" id="vesselStrip"></div>
 
-    <!-- Summary cards -->
     <div class="cards" id="summaryCards"></div>
 
-    <!-- Nozzle cuts table -->
     <div class="section-hdr">
       <h2>✂ Nozzle Cuts</h2>
       <span class="count" id="cutCount">—</span>
@@ -537,7 +532,8 @@ td.purple { font-family: var(--mono); font-weight: 700; color: var(--purple); }
             <th>Print Angle</th>
             <th>Expected RTP</th>
             <th>RPD Angle</th>
-            <th>Axial Pos</th>
+            <th>Dist from Ref</th>
+            <th>Offset</th>
             <th>Δ</th>
             <th>Status</th>
           </tr>
@@ -546,28 +542,23 @@ td.purple { font-family: var(--mono); font-weight: 700; color: var(--purple); }
       </table>
     </div>
 
-    <!-- Scribes -->
-    <div class="section-hdr">
-      <h2>◎ Scribe Features</h2>
-      <span class="count" id="scribeCount">—</span>
-      <span class="section-note" style="color:var(--scribe)">Informational</span>
-    </div>
-    <div class="scribe-grid" id="scribeGrid"></div>
-
-    <!-- Debug -->
     <div class="section-hdr" style="margin-top:28px;">
       <h2>⌥ Parser Debug</h2>
       <button class="debug-toggle" onclick="toggleDebug()">▼ Show</button>
     </div>
     <div class="debug-panel" id="debugPanel"></div>
 
-  </div><!-- /results -->
+  </div>
 
 </main>
 
 <script>
 // -----------------------------------------------------------------
-// CARV v3.2 — XML + RPD dual-file verifier
+// CARV v3.3 — XML + RPD dual-file verifier
+// Changes from v3.2:
+//   - Removed Scribe Features section
+//   - Added Offset column to nozzle table (lateral offset badge)
+//   - Renamed "Axial Pos" → "Dist from Ref"
 // -----------------------------------------------------------------
 
 let xmlFile = null, rpdFile = null, vesselOrientation = 'H';
@@ -670,7 +661,7 @@ function parseRPD(rpdText) {
   const doc = parser.parseFromString(rpdText, 'application/xml');
   const parseError = doc.querySelector('parsererror');
   if (parseError) throw new Error('RPD parse error: ' + parseError.textContent.substring(0, 100));
-  const result = { pipeName: '', pipeOD: null, shellLength: null, seamAngle: null, nozzleCuts: [], scribes: [], debugLines: [] };
+  const result = { pipeName: '', pipeOD: null, shellLength: null, seamAngle: null, nozzleCuts: [], debugLines: [] };
   const pipeData = doc.querySelector('PipeData');
   if (!pipeData) throw new Error('RPD: No PipeData element found');
   result.pipeName = getText(pipeData, 'Name');
@@ -762,6 +753,7 @@ document.getElementById('btnCheck').addEventListener('click', async () => {
       const rpdAngle = rn ? rn.rpdAngle : null;
       const delta = (rpdAngle !== null) ? angularDist(expectedRTP, rpdAngle) : null;
       const rpdPos = rn ? rn.rpdPosition : null;
+      const lateralOffset = rn ? rn.lateralOffset : 0;
       const posFromLeft = (rpdPos !== null && shellLength !== null) ? shellLength - rpdPos : null;
       const xmlPosFromLeft = xn.intersectionZ;
       let statusClass = 'fail', statusText = 'NO MATCH';
@@ -771,12 +763,19 @@ document.getElementById('btnCheck').addEventListener('click', async () => {
         else                  { statusClass = 'fail'; statusText = 'FAIL';   failCount++; }
       } else { failCount++; }
       const deltaChipClass = delta === null ? 'delta-fail' : delta <= 5 ? 'delta-ok' : delta <= 15 ? 'delta-warn' : 'delta-fail';
+
       let posDisplay = '—';
       if (posFromLeft !== null) {
         posDisplay = posFromLeft.toFixed(2) + '"';
         if (xmlPosFromLeft !== null) { const posδ = Math.abs(posFromLeft - xmlPosFromLeft); if (posδ > 0.1) posDisplay += ` <span style="color:var(--yellow);font-size:10px">(XML: ${xmlPosFromLeft}")</span>`; }
       } else if (xmlPosFromLeft !== null) { posDisplay = xmlPosFromLeft + '" <span style="color:var(--text-dim);font-size:10px">(XML only)</span>'; }
-      debugLines.push(`${xn.name}: printAngle=${xn.printAngle}° → expectedRTP=${expectedRTP.toFixed(1)}° | RPD=${rpdAngle !== null ? rpdAngle + '°' : 'N/A'} | Δ=${delta !== null ? delta.toFixed(1) + '°' : 'N/A'}`);
+
+      const hasOffset = lateralOffset !== null && Math.abs(lateralOffset) > 0.01;
+      const offsetDisplay = hasOffset
+        ? `<span class="offset-badge">${lateralOffset > 0 ? '+' : ''}${lateralOffset}"</span>`
+        : '<span style="color:var(--text-dim);font-family:var(--mono);font-size:11px">—</span>';
+
+      debugLines.push(`${xn.name}: printAngle=${xn.printAngle}° → expectedRTP=${expectedRTP.toFixed(1)}° | RPD=${rpdAngle !== null ? rpdAngle + '°' : 'N/A'} | Δ=${delta !== null ? delta.toFixed(1) + '°' : 'N/A'} | offset=${lateralOffset}"`);
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><span class="nozzle-id">${xn.name}</span></td>
@@ -786,6 +785,7 @@ document.getElementById('btnCheck').addEventListener('click', async () => {
         <td class="mono" style="color:var(--blue)">${expectedRTP.toFixed(1)}°</td>
         <td class="mono">${rpdAngle !== null ? rpdAngle + '°' : '<span style="color:var(--red)">—</span>'}</td>
         <td class="mono" style="font-size:11px">${posDisplay}</td>
+        <td>${offsetDisplay}</td>
         <td>${delta !== null ? '<span class="delta-chip ' + deltaChipClass + '">' + delta.toFixed(1) + '°</span>' : '<span class="delta-chip delta-fail">—</span>'}</td>
         <td class="${statusClass}">${statusText}</td>
       `;
@@ -800,20 +800,6 @@ document.getElementById('btnCheck').addEventListener('click', async () => {
       <div class="card"><div class="card-title">Warnings</div><div class="card-value" style="color:${warnCount > 0 ? 'var(--yellow)' : 'var(--text-dim)'}">${warnCount}</div><div class="card-badge badge-warn">5–15° delta</div></div>
       <div class="card"><div class="card-title">Failed</div><div class="card-value" style="color:${failCount > 0 ? 'var(--red)' : 'var(--text-dim)'}">${failCount}</div><div class="card-badge badge-fail">&gt; 15° delta</div></div>
     `;
-    const scribeGrid = document.getElementById('scribeGrid');
-    scribeGrid.innerHTML = '';
-    let scribeCount = 0;
-    rpdData.nozzleCuts.forEach(rn => {
-      if (Math.abs(rn.lateralOffset) > 0.01) {
-        scribeCount++;
-        const chip = document.createElement('div');
-        chip.className = 'scribe-chip';
-        chip.innerHTML = `<div class="sc-label">${rn.name} Offset</div><div class="sc-val">Lateral: ${rn.lateralOffset}"</div><div class="sc-val">Pos: ${rn.rpdPosition}"</div>`;
-        scribeGrid.appendChild(chip);
-      }
-    });
-    document.getElementById('scribeCount').textContent = scribeCount > 0 ? `${scribeCount} offset nozzle${scribeCount > 1 ? 's' : ''}` : 'None detected';
-    if (scribeCount === 0) { scribeGrid.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:4px 0">No offset nozzles in this program.</div>'; }
     document.getElementById('debugPanel').textContent = debugLines.join('\n');
     const banner = document.getElementById('statusBanner');
     if (anyFail) { banner.textContent = '⛔  FAIL — CUT ANGLES DO NOT MATCH ENGINEERING DESIGN'; banner.className = 'status-banner fail'; }
